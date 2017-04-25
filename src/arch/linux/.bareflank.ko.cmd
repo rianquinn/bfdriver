@@ -1,0 +1,1 @@
+cmd_/home/user/bfdriver/src/arch/linux/bareflank.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/user/bfdriver/src/arch/linux/bareflank.ko /home/user/bfdriver/src/arch/linux/bareflank.o /home/user/bfdriver/src/arch/linux/bareflank.mod.o
