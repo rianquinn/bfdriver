@@ -20,31 +20,22 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-# $1 == CMAKE_INSTALL_PREFIX
-
 case $(uname -s) in
 # CYGWIN_NT-6.3)
 #     rm -Rf $BUILD_ABS/outdir
 #     rm -Rf $BUILD_ABS/intdir
-#     SCRIPT_PATH=`cygpath -w $HYPER_ABS/tools/scripts/build_windows.bat`
-#     HYPER_ABS_PATH=`cygpath -w $HYPER_ABS`
-#     BUILD_ABS_PATH=`cygpath -w $BUILD_ABS`
-#     cmd.exe /c $SCRIPT_PATH $HYPER_ABS_PATH $BUILD_ABS_PATH WindowsV6.3
+#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/Tools/x64/devcon remove "ROOT\bareflank"
 #     ;;
 
 # CYGWIN_NT-10.0)
 #     rm -Rf $BUILD_ABS/outdir
 #     rm -Rf $BUILD_ABS/intdir
-#     SCRIPT_PATH=`cygpath -w $HYPER_ABS/tools/scripts/build_windows.bat`
-#     HYPER_ABS_PATH=`cygpath -w $HYPER_ABS`
-#     BUILD_ABS_PATH=`cygpath -w $BUILD_ABS`
-#     cmd.exe /c $SCRIPT_PATH $HYPER_ABS_PATH $BUILD_ABS_PATH Windows10
+#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/Tools/x64/devcon remove "ROOT\bareflank"
 #     ;;
 
 Linux)
-    cd ../src/arch/linux
-    make clean
-    make CMAKE_INSTALL_PREFIX=$1
+    cd $1/src/arch/linux
+    sudo make unload 1> /dev/null 2> /dev/null
     ;;
 *)
     echo "OS not supported"

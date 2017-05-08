@@ -21,11 +21,11 @@
  */
 
 #include <common.h>
-#include <platform.h>
 
 #include <bftypes.h>
 #include <bfdebug.h>
 #include <bfmemory.h>
+#include <bfplatform.h>
 #include <bfconstants.h>
 #include <bfthreadcontext.h>
 #include <bfdriverinterface.h>
@@ -35,8 +35,10 @@
 /* -------------------------------------------------------------------------- */
 
 int64_t g_num_modules = 0;
-struct module_t g_modules[MAX_NUM_MODULES];
+struct bfelf_binary_t g_modules[MAX_NUM_MODULES];
 
+_start_t _start;
+struct crt_info_t g_info;
 struct bfelf_loader_t g_loader;
 
 int64_t g_num_cpus_started = 0;
@@ -52,15 +54,6 @@ uint64_t g_stack_top = 0;
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
-
-struct module_t *
-get_module(int64_t index)
-{
-    if (index < 0 || index >= g_num_modules)
-        return 0;
-
-    return &(g_modules[index]);
-}
 
 int64_t
 setup_stack(void)
@@ -93,61 +86,100 @@ setup_tls(void)
     return BF_SUCCESS;
 }
 
-// int64_t
-// add_raw_md_to_memory_manager(uint64_t virt, uint64_t type)
-// {
-//     int64_t ret = 0;
-//     struct memory_descriptor md = {0, 0, 0};
+int64_t
+call_vmm(uintptr_t request, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3)
+{
+    int64_t ret = 0;
+    int64_t cpuid = 0;
+    struct thread_context_t *tc = (struct thread_context_t *)(g_stack_top - sizeof(struct thread_context_t));
 
-//     md.virt = virt;
-//     md.phys = (uint64_t)platform_virt_to_phys((void *)md.virt);
-//     md.type = type;
+    ret = bfelf_set_integer_args(&g_info, request, arg1, arg2, arg3);
+    if (ret != BF_SUCCESS) {
+        return ret;
+    }
 
-//     ret = execute_symbol("add_md", (uint64_t)&md, 0, 0);
-//     if (ret != MEMORY_MANAGER_SUCCESS)
-//         return ret;
+    cpuid = platform_get_current_cpu_num();
 
-//     return BF_SUCCESS;
-// }
+    tc->cpuid = cpuid;
+    tc->tlsptr = (uint64_t)g_tls + (THREAD_LOCAL_STORAGE_SIZE * cpuid);
 
-// int64_t
-// add_md_to_memory_manager(struct module_t *module)
-// {
-//     int64_t ret = 0;
-//     bfelf64_word s = 0;
+    if (_start != 0) {
+        ret = _start((void *)(g_stack_top - sizeof(struct thread_context_t) - 1), &g_info);
+    }
+    else {
+        ret = BF_ERROR_UNKNOWN;
+    }
 
-//     if (module == 0)
-//         return BF_ERROR_INVALID_ARG;
+    platform_restore_preemption();
+    return ret;
+}
 
-//     for (s = 0; s < bfelf_file_get_num_load_instrs(&module->file); s++)
-//     {
-//         uint64_t exec_s = 0;
-//         uint64_t exec_e = 0;
-//         struct bfelf_load_instr *instr = 0;
+int64_t
+add_raw_md_to_memory_manager(uint64_t virt, uint64_t type)
+{
+    int64_t ret = 0;
+    struct memory_descriptor md = {0, 0, 0};
 
-//         ret = bfelf_file_get_load_instr(&module->file, s, &instr);
-//         if (ret != BFELF_SUCCESS)
-//             return ret;
+    md.virt = virt;
+    md.phys = (uint64_t)platform_virt_to_phys((void *)md.virt);
+    md.type = type;
 
-//         exec_s = (uint64_t)module->exec + instr->mem_offset;
-//         exec_e = (uint64_t)module->exec + instr->mem_offset + instr->memsz;
-//         exec_s &= ~(MAX_PAGE_SIZE - 1);
-//         exec_e &= ~(MAX_PAGE_SIZE - 1);
+    ret = call_vmm(BF_REQUEST_ADD_MDL, (uintptr_t)&md, 0, 0);
+    if (ret != MEMORY_MANAGER_SUCCESS) {
+        return ret;
+    }
 
-//         for (; exec_s <= exec_e; exec_s += MAX_PAGE_SIZE)
-//         {
-//             if ((instr->perm & bfpf_x) != 0)
-//                 ret = add_raw_md_to_memory_manager(exec_s, MEMORY_TYPE_R | MEMORY_TYPE_E);
-//             else
-//                 ret = add_raw_md_to_memory_manager(exec_s, MEMORY_TYPE_R | MEMORY_TYPE_W);
+    return BF_SUCCESS;
+}
 
-//             if (ret != MEMORY_MANAGER_SUCCESS)
-//                 return ret;
-//         }
-//     }
+// TODO
+//
+// Put this function into the ELF loader with a callback. This will be needed
+// in the hyperkernel, but what it has to do will be different.
+//
 
-//     return BF_SUCCESS;
-// }
+int64_t
+add_md_to_memory_manager(struct bfelf_binary_t *module)
+{
+    int64_t ret = 0;
+    bfelf64_word s = 0;
+
+    if (module == 0) {
+        return BF_ERROR_INVALID_ARG;
+    }
+
+    for (s = 0; s < bfelf_file_get_num_load_instrs(&module->ef); s++) {
+
+        uint64_t exec_s = 0;
+        uint64_t exec_e = 0;
+        const struct bfelf_load_instr *instr = 0;
+
+        ret = bfelf_file_get_load_instr(&module->ef, s, &instr);
+        if (ret != BFELF_SUCCESS) {
+            return ret;
+        }
+
+        exec_s = (uint64_t)module->exec + instr->mem_offset;
+        exec_e = (uint64_t)module->exec + instr->mem_offset + instr->memsz;
+        exec_s &= ~(MAX_PAGE_SIZE - 1);
+        exec_e &= ~(MAX_PAGE_SIZE - 1);
+
+        for (; exec_s <= exec_e; exec_s += MAX_PAGE_SIZE) {
+            if ((instr->perm & bfpf_x) != 0) {
+                ret = add_raw_md_to_memory_manager(exec_s, MEMORY_TYPE_R | MEMORY_TYPE_E);
+            }
+            else {
+                ret = add_raw_md_to_memory_manager(exec_s, MEMORY_TYPE_R | MEMORY_TYPE_W);
+            }
+
+            if (ret != MEMORY_MANAGER_SUCCESS) {
+                return ret;
+            }
+        }
+    }
+
+    return BF_SUCCESS;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Implementation                                                             */
@@ -166,18 +198,20 @@ common_reset(void)
 
     for (i = 0; i < g_num_modules; i++) {
         if (g_modules[i].exec != 0) {
-            platform_free_rwe(g_modules[i].exec, g_modules[i].size);
+            platform_free_rwe(g_modules[i].exec, g_modules[i].exec_size);
         }
     }
 
     platform_memset(&g_modules, 0, sizeof(g_modules));
-
-    g_num_modules = 0;
-    g_vmm_status = VMM_UNLOADED;
-
+    platform_memset(&g_loader, 0, sizeof(struct bfelf_loader_t));
+    platform_memset(&g_info, 0, sizeof(struct crt_info_t));
     platform_memset(&g_loader, 0, sizeof(struct bfelf_loader_t));
 
+    _start = 0;
+
+    g_num_modules = 0;
     g_num_cpus_started = 0;
+    g_vmm_status = VMM_UNLOADED;
 
     if (g_tls != 0) {
         platform_free_rw(g_tls, g_tls_size);
@@ -205,13 +239,13 @@ common_fini(void)
 {
     if (common_vmm_status() == VMM_RUNNING) {
         if (common_stop_vmm() != BF_SUCCESS) {
-            ALERT("common_fini: failed to stop vmm\n");
+            BFALERT("common_fini: failed to stop vmm\n");
         }
     }
 
     if (common_vmm_status() == VMM_LOADED) {
         if (common_unload_vmm() != BF_SUCCESS) {
-            ALERT("common_fini: failed to unload vmm\n");
+            BFALERT("common_fini: failed to unload vmm\n");
         }
     }
 
@@ -221,7 +255,7 @@ common_fini(void)
 
     if (common_vmm_status() == VMM_UNLOADED && g_num_modules > 0) {
         if (common_reset() != BF_SUCCESS) {
-            ALERT("common_fini: failed to reset\n");
+            BFALERT("common_fini: failed to reset\n");
         }
     }
 
@@ -251,7 +285,11 @@ common_add_module(const char *file, uint64_t fsize)
     }
 
     g_modules[g_num_modules].file = file;
-    g_modules[g_num_modules].size = size;
+    g_modules[g_num_modules].file_size = fsize;
+
+    BFDEBUG("common_add_module [%d]:\n", (int)g_num_modules);
+    BFDEBUG("    addr = %p\n", (void *)file);
+    BFDEBUG("    size = %p\n", (void *)fsize);
 
     g_num_modules++;
     return BF_SUCCESS;
@@ -260,10 +298,9 @@ common_add_module(const char *file, uint64_t fsize)
 int64_t
 common_load_vmm(void)
 {
-    // int64_t i = 0;
+    int64_t i = 0;
     int64_t ret = 0;
-    // int64_t ignore_ret = 0;
-    // struct module_t *module = 0;
+    int64_t ignore_ret = 0;
 
     switch(common_vmm_status()) {
         case VMM_CORRUPT:
@@ -282,104 +319,82 @@ common_load_vmm(void)
 
     ret = setup_stack();
     if (ret != BF_SUCCESS) {
-        return ret;
+        goto failure;
     }
 
     ret = setup_tls();
     if (ret != BF_SUCCESS) {
-        return ret;
+        goto failure;
     }
 
-    // for (i = 0; (module = get_module(i)) != 0; i++)
-    // {
-    //     ret = bfelf_loader_add(&g_loader, &module->file, module->exec, module->exec);
-    //     if (ret != BFELF_SUCCESS)
-    //         goto failure;
-    // }
+    ret = bfelf_load(g_modules, g_num_modules, (void **)&_start, &g_info, &g_loader);
+    if (ret != BF_SUCCESS) {
+        goto failure;
+    }
 
-    // DEBUG("common_add_module [%d]:\n", (int)g_num_modules);
-    // DEBUG("    addr = %p\n", (void *)module->exec);
-    // DEBUG("    size = %p\n", (void *)module->size);
+    ret = call_vmm(BF_REQUEST_INIT, 0, 0, 0);
+    if (ret != BF_SUCCESS) {
+        goto failure;
+    }
 
-    // ret = bfelf_loader_relocate(&g_loader);
-    // if (ret != BFELF_SUCCESS)
-    //     goto failure;
+    // TODO
+    //
+    // The following should be in their own functions so that they can be
+    // tested easier, and we need to send up an MDL and not each MD which will
+    // speed things up a lot.
+    //
 
-    // ret = resolve_symbol("execute_entry", (void **)&execute_entry);
-    // if (ret != BF_SUCCESS)
-    //     goto failure;
+    for (i = 0; i < g_num_modules; i++) {
+        ret = add_md_to_memory_manager(&g_modules[i]);
+        if (ret != BF_SUCCESS) {
+            goto failure;
+        }
+    }
 
-    // for (i = 0; (module = get_module(i)) != 0; i++)
-    // {
-    //     struct section_info_t info = {0, 0, 0, 0, 0, 0, 0, 0};
+    {
+        uint64_t tlss = (uint64_t)g_tls;
+        uint64_t tlse = tlss + g_tls_size;
 
-    //     ret = bfelf_file_get_section_info(&module->file, &info);
-    //     (void) ret;
-
-    //     ret = execute_symbol("local_init", (uint64_t)&info, 0, 0);
-    //     if (ret != BF_SUCCESS)
-    //         goto failure;
-    // }
-
-    // for (i = 0; (module = get_module(i)) != 0; i++)
-    // {
-    //     ret = add_md_to_memory_manager(module);
-    //     if (ret != BF_SUCCESS)
-    //         goto failure;
-    // }
-
-    // {
-    //     uint64_t tlss = (uint64_t)g_tls;
-    //     uint64_t tlse = tlss + g_tls_size;
-
-    //     for (; tlss <= tlse; tlss += MAX_PAGE_SIZE)
-    //     {
-    //         ret = add_raw_md_to_memory_manager(tlss, MEMORY_TYPE_R | MEMORY_TYPE_W);
-    //         if (ret != BF_SUCCESS)
-    //             return ret;
-    //     }
-    // }
+        for (; tlss <= tlse; tlss += MAX_PAGE_SIZE)
+        {
+            ret = add_raw_md_to_memory_manager(tlss, MEMORY_TYPE_R | MEMORY_TYPE_W);
+            if (ret != BF_SUCCESS)
+                return ret;
+        }
+    }
 
     g_vmm_status = VMM_LOADED;
     return BF_SUCCESS;
 
-// failure:
+failure:
 
-//     ignore_ret = common_unload_vmm();
-//     (void) ignore_ret;
+    ignore_ret = common_unload_vmm();
+    (void) ignore_ret;
 
-//     return ret;
+    return ret;
 }
 
 int64_t
 common_unload_vmm(void)
 {
-    // int64_t i = 0;
-    // int64_t ret = 0;
-    // struct module_t *module = 0;
+    int64_t ret = 0;
 
     switch(common_vmm_status()) {
         case VMM_CORRUPT:
-            return BF_ERROR_VMM_CORRUPTED;
+            goto corrupted;
         case VMM_RUNNING:
             return BF_ERROR_VMM_INVALID_STATE;
-        case VMM_LOADED:
+        case VMM_UNLOADED:
             goto unloaded;
         default:
             break;
     }
 
-    //     for (i = g_num_modules - 1; (module = get_module(i)) != 0; i--)
-    //     {
-    //         struct section_info_t info = {0, 0, 0, 0, 0, 0, 0, 0};
-
-    //         ret = bfelf_file_get_section_info(&module->file, &info);
-    //         (void) ret;
-
-    //         ret = execute_symbol("local_fini", (uint64_t)&info, 0, 0);
-    //         if (ret != BF_SUCCESS)
-    //             goto corrupted;
-    //     }
+    ret = call_vmm(BF_REQUEST_FINI, 0, 0, 0);
+    if (ret != BF_SUCCESS) {
+        BFALERT("call_vmm [BF_REQUEST_FINI] failed: %llx", ret);
+        goto corrupted;
+    }
 
 unloaded:
 
@@ -391,17 +406,17 @@ unloaded:
 corrupted:
 
     g_vmm_status = VMM_CORRUPT;
-    return ret;
+    return BF_ERROR_VMM_CORRUPTED;
 }
 
 int64_t
 common_start_vmm(void)
 {
-    // int64_t ret = 0;
-    // int64_t cpuid = 0;
-    // int64_t ignore_ret = 0;
-    // int64_t caller_affinity = 0;
-    // struct vmcall_registers_t regs;
+    int64_t ret = 0;
+    int64_t cpuid = 0;
+    int64_t ignore_ret = 0;
+    int64_t caller_affinity = 0;
+    struct vmcall_registers_t regs;
 
     switch(common_vmm_status()) {
         case VMM_CORRUPT:
@@ -414,48 +429,51 @@ common_start_vmm(void)
             break;
     }
 
-    // for (cpuid = 0, g_num_cpus_started = 0; cpuid < platform_num_cpus(); cpuid++)
-    // {
-    //     regs.r00 = VMCALL_START;
-    //     regs.r01 = VMCALL_MAGIC_NUMBER;
+    for (cpuid = 0, g_num_cpus_started = 0; cpuid < platform_num_cpus(); cpuid++) {
 
-    //     ret = caller_affinity = platform_set_affinity(cpuid);
-    //     if (caller_affinity < 0)
-    //         goto failure;
+        regs.r00 = VMCALL_START;
+        regs.r01 = VMCALL_MAGIC_NUMBER;
 
-    //     ret = execute_symbol("start_vmm", (uint64_t)cpuid, 0, (uint64_t)cpuid);
-    //     if (ret != BF_SUCCESS)
-    //         goto failure;
+        ret = caller_affinity = platform_set_affinity(cpuid);
+        if (caller_affinity < 0) {
+            goto failure;
+        }
 
-    //     g_num_cpus_started++;
+        ret = call_vmm(BF_REQUEST_VMM_INIT, (uint64_t)cpuid, 0, 0);
+        if (ret != BF_SUCCESS) {
+            goto failure;
+        }
 
-    //     platform_vmcall(&regs);
-    //     if (regs.r01 != 0)
-    //         return ENTRY_ERROR_VMM_START_FAILED;
+        g_num_cpus_started++;
 
-    //     platform_start();
-    //     platform_restore_affinity(caller_affinity);
+        vmcall(&regs);
+        if (regs.r01 != 0) {
+            return ENTRY_ERROR_VMM_START_FAILED;
+        }
 
-    //     g_vmm_status = VMM_RUNNING;
-    // }
+        platform_start();
+        platform_restore_affinity(caller_affinity);
+
+        g_vmm_status = VMM_RUNNING;
+    }
 
     return BF_SUCCESS;
 
-// failure:
+failure:
 
-//     ignore_ret = common_stop_vmm();
-//     (void) ignore_ret;
+    ignore_ret = common_stop_vmm();
+    (void) ignore_ret;
 
-//     return ret;
+    return ret;
 }
 
 int64_t
 common_stop_vmm(void)
 {
-    // int64_t ret = 0;
-    // int64_t cpuid = 0;
-    // int64_t caller_affinity = 0;
-    // struct vmcall_registers_t regs;
+    int64_t ret = 0;
+    int64_t cpuid = 0;
+    int64_t caller_affinity = 0;
+    struct vmcall_registers_t regs;
 
     switch(common_vmm_status()) {
         case VMM_CORRUPT:
@@ -468,42 +486,45 @@ common_stop_vmm(void)
             break;
     }
 
-    // for (cpuid = g_num_cpus_started - 1; cpuid >= 0 ; cpuid--)
-    // {
-    //     regs.r00 = VMCALL_STOP;
-    //     regs.r01 = VMCALL_MAGIC_NUMBER;
+    for (cpuid = g_num_cpus_started - 1; cpuid >= 0 ; cpuid--) {
 
-    //     ret = caller_affinity = platform_set_affinity(cpuid);
-    //     if (caller_affinity < 0)
-    //         goto corrupted;
+        regs.r00 = VMCALL_STOP;
+        regs.r01 = VMCALL_MAGIC_NUMBER;
 
-    //     platform_vmcall(&regs);
-    //     if (regs.r01 != 0)
-    //         return ENTRY_ERROR_VMM_STOP_FAILED;
+        ret = caller_affinity = platform_set_affinity(cpuid);
+        if (caller_affinity < 0) {
+            goto corrupted;
+        }
 
-    //     ret = execute_symbol("stop_vmm", (uint64_t)cpuid, 0, (uint64_t)cpuid);
-    //     if (ret != BFELF_SUCCESS)
-    //         goto corrupted;
+        vmcall(&regs);
+        if (regs.r01 != 0) {
+            return ENTRY_ERROR_VMM_STOP_FAILED;
+        }
 
-    //     g_num_cpus_started--;
+        ret = call_vmm(BF_REQUEST_VMM_FINI, (uint64_t)cpuid, 0, 0);
+        if (ret != BFELF_SUCCESS) {
+            goto corrupted;
+        }
 
-    //     platform_stop();
-    //     platform_restore_affinity(caller_affinity);
-    // }
+        g_num_cpus_started--;
+
+        platform_stop();
+        platform_restore_affinity(caller_affinity);
+    }
 
     g_vmm_status = VMM_LOADED;
     return BF_SUCCESS;
 
-// corrupted:
+corrupted:
 
-//     g_vmm_status = VMM_CORRUPT;
-//     return ret;
+    g_vmm_status = VMM_CORRUPT;
+    return ret;
 }
 
 int64_t
 common_dump_vmm(struct debug_ring_resources_t **drr, uint64_t vcpuid)
 {
-    // int64_t ret = 0;
+    int64_t ret = 0;
 
     if (drr == 0) {
         return BF_ERROR_INVALID_ARG;
@@ -513,9 +534,10 @@ common_dump_vmm(struct debug_ring_resources_t **drr, uint64_t vcpuid)
         return BF_ERROR_VMM_INVALID_STATE;
     }
 
-    // ret = execute_symbol("get_drr", (uint64_t)vcpuid, (uint64_t)drr, 0);
-    // if (ret != BFELF_SUCCESS)
-    //     return ret;
+    ret = call_vmm(BF_REQUEST_GET_DRR, (uint64_t)vcpuid, (uint64_t)drr, 0);
+    if (ret != BFELF_SUCCESS) {
+        return ret;
+    }
 
     return BF_SUCCESS;
 }

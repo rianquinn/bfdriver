@@ -20,27 +20,22 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-%ENV_SOURCE%
-
 case $(uname -s) in
 # CYGWIN_NT-6.3)
-#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/bin/x64/certmgr /add `cygpath -w $BUILD_ABS/outdir/bareflank.cer` /s /r localMachine root
-#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/bin/x64/certmgr /add `cygpath -w $BUILD_ABS/outdir/bareflank.cer` /s /r localMachine trustedpublisher
+#     rm -Rf $BUILD_ABS/outdir
+#     rm -Rf $BUILD_ABS/intdir
 #     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/Tools/x64/devcon remove "ROOT\bareflank"
-#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/Tools/x64/devcon install `cygpath -w $BUILD_ABS/outdir/bareflank/bareflank.inf` "ROOT\bareflank"
 #     ;;
 
 # CYGWIN_NT-10.0)
-#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/bin/x64/certmgr /add `cygpath -w $BUILD_ABS/outdir/bareflank.cer` /s /r localMachine root
-#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/bin/x64/certmgr /add `cygpath -w $BUILD_ABS/outdir/bareflank.cer` /s /r localMachine trustedpublisher
+#     rm -Rf $BUILD_ABS/outdir
+#     rm -Rf $BUILD_ABS/intdir
 #     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/Tools/x64/devcon remove "ROOT\bareflank"
-#     /cygdrive/c/ewdk/Program\ Files/Windows\ Kits/10/Tools/x64/devcon install `cygpath -w $BUILD_ABS/outdir/bareflank/bareflank.inf` "ROOT\bareflank"
 #     ;;
 
 Linux)
-    cd $HYPER_ABS/bfdrivers/src/arch/linux
-    sudo make unload 1> /dev/null 2> /dev/null
-    sudo make load
+    cd $1/src/arch/linux
+    make clean
     ;;
 *)
     echo "OS not supported"

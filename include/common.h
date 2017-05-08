@@ -33,35 +33,6 @@
 extern "C" {
 #endif
 
-/* -------------------------------------------------------------------------- */
-/* Module                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * This structure defines the properties that make up a module. Specifically,
- * a module is made up of the ELF file that stores all of the information
- * assocaited with the module as well as the execution buffer and size where
- * the module will be loaded to, and execute from.
- *
- * @var module_t::exec
- *     the buffer that the module is executed from
- * @var module_t::size
- *     the size of the execution buffer
- * @var module_t::file
- *     the ELF file that has all of the information about the module
- */
-struct module_t
-{
-    char *exec;
-    char *file;
-    uint64_t size;
-    struct bfelf_file_t *ef;
-};
-
-/* -------------------------------------------------------------------------- */
-/* Common Functions                                                           */
-/* -------------------------------------------------------------------------- */
-
 /**
  * VMM Status
  *
