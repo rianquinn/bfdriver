@@ -2,3 +2,12 @@ build/
 doc
 doxygen_warnings.txt
 .astyle_results.txt
+
+*.cmd
+*.tmp_versions
+*.symvers
+*.mod.o
+*.mod.c
+*.ko
+*.o
+*.order
