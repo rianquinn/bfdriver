@@ -39,13 +39,15 @@
 /* Global                                                                     */
 /* -------------------------------------------------------------------------- */
 
+uint64_t g_vcpuid = 0;
+uint64_t g_module_length = 0;
+
 struct pmodule_t
 {
     char *data;
     int64_t size;
 };
 
-uint64_t g_vcpuid = 0;
 uint64_t g_num_pmodules = 0;
 struct pmodule_t pmodules[MAX_NUM_MODULES] = { 0 };
 
@@ -59,7 +61,7 @@ dev_open(struct inode *inode, struct file *file)
     (void) inode;
     (void) file;
 
-    DEBUG("dev_open succeeded\n");
+    BFDEBUG("dev_open succeeded\n");
     return 0;
 }
 
@@ -69,7 +71,7 @@ dev_release(struct inode *inode, struct file *file)
     (void) inode;
     (void) file;
 
-    DEBUG("dev_release succeeded\n");
+    BFDEBUG("dev_release succeeded\n");
     return 0;
 }
 
@@ -81,45 +83,45 @@ ioctl_add_module(char *file)
 
     if (g_num_pmodules >= MAX_NUM_MODULES)
     {
-        ALERT("IOCTL_ADD_MODULE: too many modules have been loaded\n");
+        BFALERT("IOCTL_ADD_MODULE: too many modules have been loaded\n");
         return BF_IOCTL_FAILURE;
     }
 
-    buf = platform_alloc(g_module_length);
+    buf = platform_alloc_rw(g_module_length);
     if (buf == NULL)
     {
-        ALERT("IOCTL_ADD_MODULE: failed to allocate memory for the module\n");
+        BFALERT("IOCTL_ADD_MODULE: failed to allocate memory for the module\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_from_user(buf, file, g_module_length);
     if (ret != 0)
     {
-        ALERT("IOCTL_ADD_MODULE: failed to copy memory from userspace\n");
+        BFALERT("IOCTL_ADD_MODULE: failed to copy memory from userspace\n");
         goto failed;
     }
 
     ret = common_add_module(buf, g_module_length);
     if (ret != BF_SUCCESS)
     {
-        ALERT("IOCTL_ADD_MODULE: common_add_module failed: %p - %s\n", \
+        BFALERT("IOCTL_ADD_MODULE: common_add_module failed: %p - %s\n", \
               (void *)ret, ec_to_str(ret));
         goto failed;
     }
 
     pmodules[g_num_pmodules].data = buf;
-    pmodules[g_num_pmodules].size = len;
+    pmodules[g_num_pmodules].size = g_module_length;
 
     g_num_pmodules++;
 
-    DEBUG("IOCTL_ADD_MODULE: succeeded\n");
+    BFDEBUG("IOCTL_ADD_MODULE: succeeded\n");
     return BF_IOCTL_SUCCESS;
 
 failed:
 
-    platform_free(buf);
+    platform_free_rw(buf, g_module_length);
 
-    ALERT("IOCTL_ADD_MODULE: failed\n");
+    BFALERT("IOCTL_ADD_MODULE: failed\n");
     return BF_IOCTL_FAILURE;
 }
 
@@ -130,18 +132,18 @@ ioctl_add_module_length(uint64_t *len)
 
     if (len == 0)
     {
-        ALERT("IOCTL_ADD_MODULE_LENGTH: failed with len == NULL\n");
+        BFALERT("IOCTL_ADD_MODULE_LENGTH: failed with len == NULL\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_from_user(&g_module_length, len, sizeof(uint64_t));
     if (ret != 0)
     {
-        ALERT("IOCTL_ADD_MODULE_LENGTH: failed to copy memory from userspace\n");
+        BFALERT("IOCTL_ADD_MODULE_LENGTH: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
 
-    DEBUG("IOCTL_ADD_MODULE_LENGTH: succeeded\n");
+    BFDEBUG("IOCTL_ADD_MODULE_LENGTH: succeeded\n");
     return BF_IOCTL_SUCCESS;
 }
 
@@ -153,21 +155,22 @@ ioctl_unload_vmm(void)
     long status = BF_IOCTL_SUCCESS;
 
     ret = common_unload_vmm();
-    if (ret != BF_SUCCESS)
-    {
-        ALERT("IOCTL_UNLOAD_VMM: common_unload_vmm failed: %p - %s\n", \
+    if (ret != BF_SUCCESS) {
+        BFALERT("IOCTL_UNLOAD_VMM: common_unload_vmm failed: %p - %s\n", \
               (void *)ret, ec_to_str(ret));
         status = BF_IOCTL_FAILURE;
     }
 
-    for (i = 0; i < g_num_pmodules; i++)
-        platform_free(pmodules[i].data, pmodules[i].size);
+    for (i = 0; i < g_num_pmodules; i++) {
+        platform_free_rw(pmodules[i].data, pmodules[i].size);
+    }
 
     g_num_pmodules = 0;
     platform_memset(&pmodules, 0, sizeof(pmodules));
 
-    if (status == BF_IOCTL_SUCCESS)
-        DEBUG("IOCTL_UNLOAD_VMM: succeeded\n");
+    if (status == BF_IOCTL_SUCCESS) {
+        BFDEBUG("IOCTL_UNLOAD_VMM: succeeded\n");
+    }
 
     return status;
 }
@@ -180,12 +183,12 @@ ioctl_load_vmm(void)
     ret = common_load_vmm();
     if (ret != BF_SUCCESS)
     {
-        ALERT("IOCTL_LOAD_VMM: common_load_vmm failed: %p - %s\n", \
+        BFALERT("IOCTL_LOAD_VMM: common_load_vmm failed: %p - %s\n", \
               (void *)ret, ec_to_str(ret));
         goto failure;
     }
 
-    DEBUG("IOCTL_LOAD_VMM: succeeded\n");
+    BFDEBUG("IOCTL_LOAD_VMM: succeeded\n");
     return BF_IOCTL_SUCCESS;
 
 failure:
@@ -204,13 +207,13 @@ ioctl_stop_vmm(void)
 
     if (ret != BF_SUCCESS)
     {
-        ALERT("IOCTL_STOP_VMM: common_stop_vmm failed: %p - %s\n", \
+        BFALERT("IOCTL_STOP_VMM: common_stop_vmm failed: %p - %s\n", \
               (void *)ret, ec_to_str(ret));
         status = BF_IOCTL_FAILURE;
     }
 
     if (status == BF_IOCTL_SUCCESS)
-        DEBUG("IOCTL_STOP_VMM: succeeded\n");
+        BFDEBUG("IOCTL_STOP_VMM: succeeded\n");
 
     return status;
 }
@@ -223,12 +226,12 @@ ioctl_start_vmm(void)
     ret = common_start_vmm();
     if (ret != BF_SUCCESS)
     {
-        ALERT("IOCTL_START_VMM: common_start_vmm failed: %p - %s\n", \
+        BFALERT("IOCTL_START_VMM: common_start_vmm failed: %p - %s\n", \
               (void *)ret, ec_to_str(ret));
         goto failure;
     }
 
-    DEBUG("IOCTL_START_VMM: succeeded\n");
+    BFDEBUG("IOCTL_START_VMM: succeeded\n");
     return BF_IOCTL_SUCCESS;
 
 failure:
@@ -246,7 +249,7 @@ ioctl_dump_vmm(struct debug_ring_resources_t *user_drr)
     ret = common_dump_vmm(&drr, g_vcpuid);
     if (ret != BF_SUCCESS)
     {
-        ALERT("IOCTL_DUMP_VMM: common_dump_vmm failed: %p - %s\n", \
+        BFALERT("IOCTL_DUMP_VMM: common_dump_vmm failed: %p - %s\n", \
               (void *)ret, ec_to_str(ret));
         return BF_IOCTL_FAILURE;
     }
@@ -254,11 +257,11 @@ ioctl_dump_vmm(struct debug_ring_resources_t *user_drr)
     ret = copy_to_user(user_drr, drr, sizeof(struct debug_ring_resources_t));
     if (ret != 0)
     {
-        ALERT("IOCTL_DUMP_VMM: failed to copy memory from userspace\n");
+        BFALERT("IOCTL_DUMP_VMM: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
 
-    DEBUG("IOCTL_DUMP_VMM: succeeded\n");
+    BFDEBUG("IOCTL_DUMP_VMM: succeeded\n");
     return BF_IOCTL_SUCCESS;
 }
 
@@ -270,14 +273,14 @@ ioctl_vmm_status(int64_t *status)
 
     if (status == 0)
     {
-        ALERT("IOCTL_VMM_STATUS: common_vmm_status failed: NULL\n");
+        BFALERT("IOCTL_VMM_STATUS: common_vmm_status failed: NULL\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_to_user(status, &vmm_status, sizeof(int64_t));
     if (ret != 0)
     {
-        ALERT("IOCTL_VMM_STATUS: failed to copy memory from userspace\n");
+        BFALERT("IOCTL_VMM_STATUS: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
 
@@ -291,14 +294,14 @@ ioctl_set_vcpuid(uint64_t *vcpuid)
 
     if (vcpuid == 0)
     {
-        ALERT("IOCTL_SET_VCPUID: failed with vcpuid == NULL\n");
+        BFALERT("IOCTL_SET_VCPUID: failed with vcpuid == NULL\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_from_user(&g_vcpuid, vcpuid, sizeof(uint64_t));
     if (ret != 0)
     {
-        ALERT("IOCTL_SET_VCPUID: failed to copy memory from userspace\n");
+        BFALERT("IOCTL_SET_VCPUID: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
 
@@ -389,17 +392,17 @@ dev_init(void)
 
     if (misc_register(&bareflank_dev) != 0)
     {
-        ALERT("misc_register failed\n");
+        BFALERT("misc_register failed\n");
         return -EPERM;
     }
 
     if (common_init() != 0)
     {
-        ALERT("common_init failed\n");
+        BFALERT("common_init failed\n");
         return -EPERM;
     }
 
-    DEBUG("dev_init succeeded\n");
+    BFDEBUG("dev_init succeeded\n");
     return 0;
 }
 
@@ -411,7 +414,7 @@ dev_exit(void)
     misc_deregister(&bareflank_dev);
     unregister_reboot_notifier(&bareflank_notifier_block);
 
-    DEBUG("dev_exit succeeded\n");
+    BFDEBUG("dev_exit succeeded\n");
     return;
 }
 

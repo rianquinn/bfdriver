@@ -35,5 +35,4 @@ endif
 
 $(KBUILD_EXTMOD)/vmcall.o: vmcall.asm
 	@echo "cmd_${KBUILD_EXTMOD}/vmcall.o := nasm -f elf64 -o vmcall.asm" > $(KBUILD_EXTMOD)/.vmcall.o.cmd
-	@echo "  AS [M]  ${KBUILD_EXTMOD}/vmcall.o"
 	@nasm -f elf64 -o $@ $^

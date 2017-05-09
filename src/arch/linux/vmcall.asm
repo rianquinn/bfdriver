@@ -24,8 +24,8 @@ default rel
 
 section .text
 
-global platform_vmcall:function
-platform_vmcall:
+global vmcall:function
+vmcall:
 
     push rbx
     push r12
@@ -67,18 +67,5 @@ platform_vmcall:
     pop r13
     pop r12
     pop rbx
-
-    ret
-
-global platform_vmcall_event:function
-platform_vmcall_event:
-
-    mov rax, [rdi + 0x00]
-    mov rdx, [rdi + 0x08]
-    mov rcx, [rdi + 0x10]
-
-    vmcall
-
-    mov [rdi + 0x08], rdx
 
     ret

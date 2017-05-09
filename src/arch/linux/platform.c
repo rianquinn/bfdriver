@@ -20,9 +20,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <platform.h>
-
+#include <bftypes.h>
 #include <bfdebug.h>
+#include <bfplatform.h>
 #include <bfelf_loader.h>
 
 #include <linux/mm.h>
@@ -43,18 +43,18 @@ set_affinity_fn set_cpu_affinity = 0;
 void *
 platform_alloc_rw(uint64_t len)
 {
-    void *addr = NULL;
+    void *addr = nullptr;
 
-    if (len == 0)
-    {
-        ALERT("platform_alloc_rw: invalid length\n");
+    if (len == 0) {
+        BFALERT("platform_alloc_rw: invalid length\n");
         return addr;
     }
 
     addr = vmalloc(len);
 
-    if (addr == NULL)
-        ALERT("platform_alloc_rw: failed to vmalloc mem: %lld\n", len);
+    if (addr == nullptr) {
+        BFALERT("platform_alloc_rw: failed to vmalloc mem: %lld\n", len);
+    }
 
     return addr;
 }
@@ -62,18 +62,18 @@ platform_alloc_rw(uint64_t len)
 void *
 platform_alloc_rwe(uint64_t len)
 {
-    void *addr = NULL;
+    void *addr = nullptr;
 
-    if (len == 0)
-    {
-        ALERT("platform_alloc_rwe: invalid length\n");
+    if (len == 0) {
+        BFALERT("platform_alloc_rwe: invalid length\n");
         return addr;
     }
 
     addr = __vmalloc(len, GFP_KERNEL, PAGE_KERNEL_EXEC);
 
-    if (addr == NULL)
-        ALERT("platform_alloc_rwe: failed to vmalloc executable mem: %lld\n", len);
+    if (addr == nullptr) {
+        BFALERT("platform_alloc_rwe: failed to vmalloc executable mem: %lld\n", len);
+    }
 
     return addr;
 }
@@ -81,11 +81,10 @@ platform_alloc_rwe(uint64_t len)
 void
 platform_free_rw(void *addr, uint64_t len)
 {
-    (void) len;
+    bfignored(len);
 
-    if (addr == NULL)
-    {
-        ALERT("platform_free_rw: invalid address %p\n", addr);
+    if (addr == nullptr) {
+        BFALERT("platform_free_rw: invalid address %p\n", addr);
         return;
     }
 
@@ -95,11 +94,10 @@ platform_free_rw(void *addr, uint64_t len)
 void
 platform_free_rwe(void *addr, uint64_t len)
 {
-    (void) len;
+    bfignored(len);
 
-    if (addr == NULL)
-    {
-        ALERT("platform_free_rwe: invalid address %p\n", addr);
+    if (addr == nullptr) {
+        BFALERT("platform_free_rwe: invalid address %p\n", addr);
         return;
     }
 
@@ -109,28 +107,32 @@ platform_free_rwe(void *addr, uint64_t len)
 void *
 platform_virt_to_phys(void *virt)
 {
-    if (is_vmalloc_addr(virt))
+    if (is_vmalloc_addr(virt)) {
         return (void *)page_to_phys(vmalloc_to_page(virt));
-    else
+    }
+    else {
         return (void *)virt_to_phys(virt);
+    }
 }
 
-void
+void *
 platform_memset(void *ptr, char value, uint64_t num)
 {
-    if (!ptr)
-        return;
+    if (!ptr) {
+        return nullptr;
+    }
 
-    memset(ptr, value, num);
+    return memset(ptr, value, num);
 }
 
-void
+void *
 platform_memcpy(void *dst, const void *src, uint64_t num)
 {
-    if (!dst || !src)
-        return;
+    if (!dst || !src) {
+        return nullptr;
+    }
 
-    memcpy(dst, src, num);
+    return memcpy(dst, src, num);
 }
 
 void
@@ -154,8 +156,9 @@ platform_num_cpus(void)
 {
     int64_t num_cpus = num_online_cpus();
 
-    if (num_cpus < 0)
+    if (num_cpus < 0) {
         return 0;
+    }
 
     return num_cpus;
 }
@@ -163,18 +166,17 @@ platform_num_cpus(void)
 int64_t
 platform_set_affinity(int64_t affinity)
 {
-    if (!set_cpu_affinity)
-    {
+    if (!set_cpu_affinity) {
         set_cpu_affinity = (set_affinity_fn)kallsyms_lookup_name("sched_setaffinity");
-        if (set_cpu_affinity == NULL)
-        {
-            ALERT("Failed to locate sched_setaffinity\n");
+        if (set_cpu_affinity == nullptr) {
+            BFALERT("Failed to locate sched_setaffinity\n");
             return BF_ERROR_UNKNOWN;
         }
     }
 
-    if (set_cpu_affinity(current->pid, cpumask_of(affinity)) != 0)
+    if (set_cpu_affinity(current->pid, cpumask_of(affinity)) != 0) {
         return BF_ERROR_UNKNOWN;
+    }
 
     return affinity;
 }
@@ -182,5 +184,17 @@ platform_set_affinity(int64_t affinity)
 void
 platform_restore_affinity(int64_t affinity)
 {
-    (void) affinity;
+    bfignored(affinity);
+}
+
+int64_t
+platform_get_current_cpu_num(void)
+{
+    return get_cpu();
+}
+
+void
+platform_restore_preemption(void)
+{
+    put_cpu();
 }
