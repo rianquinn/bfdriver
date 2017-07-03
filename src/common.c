@@ -284,15 +284,14 @@ common_add_module(const char *file, uint64_t fsize)
         return BF_ERROR_MAX_MODULES_REACHED;
     }
 
-    struct bfelf_binary_t *new_module = &g_modules[g_num_modules];
-    new_module->file = file;
-    new_module->file_size = fsize;
+    g_modules[g_num_modules].file = file;
+    g_modules[g_num_modules].file_size = fsize;
 
-    BFDEBUG("common_add_module [%ld]:\n", g_num_modules);
-    BFDEBUG("    addr = %p\n", (void*)new_module);
-    BFDEBUG("    size = %lu\n", fsize);
+    BFDEBUG("common_add_module [%d]:\n", (int)g_num_modules);
+    BFDEBUG("    addr = %p\n", (void *)file);
+    BFDEBUG("    size = %p\n", (void *)fsize);
 
-    ++g_num_modules;
+    g_num_modules++;
     return BF_SUCCESS;
 }
 
