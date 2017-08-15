@@ -149,8 +149,7 @@ driver_entry_ut::test_common_load_add_md_tls_failed()
         mocks.OnCallFunc(add_md_to_memory_manager).Return(0);
         mocks.ExpectCallFunc(add_raw_md_to_memory_manager).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_load_vmm() == -1);
         });
     }
@@ -217,8 +216,7 @@ driver_entry_ut::test_common_load_resolve_symbol_failed()
         MockRepository mocks;
         mocks.ExpectCallFunc(resolve_symbol).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_load_vmm() == -1);
         });
     }
@@ -238,8 +236,7 @@ driver_entry_ut::test_common_load_execute_symbol_failed()
         MockRepository mocks;
         mocks.ExpectCallFunc(execute_symbol).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_load_vmm() == -1);
         });
     }

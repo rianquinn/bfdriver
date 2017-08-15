@@ -50,8 +50,9 @@ verify_no_mem_leaks(void)
 void *
 platform_alloc_rw(uint64_t len)
 {
-    if (g_malloc_fails == len)
+    if (g_malloc_fails == len) {
         return 0;
+    }
 
     alloc_count_rw++;
     return malloc(len);
@@ -64,16 +65,17 @@ platform_alloc_rwe(uint64_t len)
 {
     void *addr = 0;
 
-    if (g_malloc_fails == len)
+    if (g_malloc_fails == len) {
         return 0;
+    }
 
     len = PAGE_ROUND_UP(len);
 
-    if (posix_memalign(&addr, MAX_PAGE_SIZE, len) != 0)
+    if (posix_memalign(&addr, MAX_PAGE_SIZE, len) != 0) {
         return 0;
+    }
 
-    if (mprotect(addr, len, PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
-    {
+    if (mprotect(addr, len, PROT_READ | PROT_WRITE | PROT_EXEC) == -1) {
         platform_free_rw(addr, len);
         return 0;
     }
@@ -110,8 +112,9 @@ platform_virt_to_phys(void *virt)
 void
 platform_memset(void *ptr, char value, uint64_t num)
 {
-    if (!ptr)
+    if (!ptr) {
         return;
+    }
 
     memset(ptr, value, num);
 }
@@ -119,8 +122,9 @@ platform_memset(void *ptr, char value, uint64_t num)
 void
 platform_memcpy(void *dst, const void *src, uint64_t num)
 {
-    if (!dst || !src)
+    if (!dst || !src) {
         return;
+    }
 
     memcpy(dst, src, num);
 }
@@ -146,8 +150,9 @@ platform_set_affinity(int64_t affinity)
 {
     (void) affinity;
 
-    if (g_set_afinity_fails != 0)
+    if (g_set_afinity_fails != 0) {
         return -1;
+    }
 
     return 0;
 }

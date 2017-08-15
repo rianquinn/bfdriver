@@ -42,8 +42,7 @@
 uint64_t g_vcpuid = 0;
 uint64_t g_module_length = 0;
 
-struct pmodule_t
-{
+struct pmodule_t {
     char *data;
     int64_t size;
 };
@@ -81,31 +80,27 @@ ioctl_add_module(char *file)
     char *buf;
     int64_t ret;
 
-    if (g_num_pmodules >= MAX_NUM_MODULES)
-    {
+    if (g_num_pmodules >= MAX_NUM_MODULES) {
         BFALERT("IOCTL_ADD_MODULE: too many modules have been loaded\n");
         return BF_IOCTL_FAILURE;
     }
 
     buf = platform_alloc_rw(g_module_length);
-    if (buf == NULL)
-    {
+    if (buf == NULL) {
         BFALERT("IOCTL_ADD_MODULE: failed to allocate memory for the module\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_from_user(buf, file, g_module_length);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         BFALERT("IOCTL_ADD_MODULE: failed to copy memory from userspace\n");
         goto failed;
     }
 
     ret = common_add_module(buf, g_module_length);
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         BFALERT("IOCTL_ADD_MODULE: common_add_module failed: %p - %s\n", \
-              (void *)ret, ec_to_str(ret));
+                (void *)ret, ec_to_str(ret));
         goto failed;
     }
 
@@ -130,15 +125,13 @@ ioctl_add_module_length(uint64_t *len)
 {
     int64_t ret;
 
-    if (len == 0)
-    {
+    if (len == 0) {
         BFALERT("IOCTL_ADD_MODULE_LENGTH: failed with len == NULL\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_from_user(&g_module_length, len, sizeof(uint64_t));
-    if (ret != 0)
-    {
+    if (ret != 0) {
         BFALERT("IOCTL_ADD_MODULE_LENGTH: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
@@ -157,7 +150,7 @@ ioctl_unload_vmm(void)
     ret = common_unload_vmm();
     if (ret != BF_SUCCESS) {
         BFALERT("IOCTL_UNLOAD_VMM: common_unload_vmm failed: %p - %s\n", \
-              (void *)ret, ec_to_str(ret));
+                (void *)ret, ec_to_str(ret));
         status = BF_IOCTL_FAILURE;
     }
 
@@ -181,10 +174,9 @@ ioctl_load_vmm(void)
     int64_t ret;
 
     ret = common_load_vmm();
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         BFALERT("IOCTL_LOAD_VMM: common_load_vmm failed: %p - %s\n", \
-              (void *)ret, ec_to_str(ret));
+                (void *)ret, ec_to_str(ret));
         goto failure;
     }
 
@@ -205,15 +197,15 @@ ioctl_stop_vmm(void)
 
     ret = common_stop_vmm();
 
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         BFALERT("IOCTL_STOP_VMM: common_stop_vmm failed: %p - %s\n", \
-              (void *)ret, ec_to_str(ret));
+                (void *)ret, ec_to_str(ret));
         status = BF_IOCTL_FAILURE;
     }
 
-    if (status == BF_IOCTL_SUCCESS)
+    if (status == BF_IOCTL_SUCCESS) {
         BFDEBUG("IOCTL_STOP_VMM: succeeded\n");
+    }
 
     return status;
 }
@@ -224,10 +216,9 @@ ioctl_start_vmm(void)
     int64_t ret;
 
     ret = common_start_vmm();
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         BFALERT("IOCTL_START_VMM: common_start_vmm failed: %p - %s\n", \
-              (void *)ret, ec_to_str(ret));
+                (void *)ret, ec_to_str(ret));
         goto failure;
     }
 
@@ -247,16 +238,14 @@ ioctl_dump_vmm(struct debug_ring_resources_t *user_drr)
     struct debug_ring_resources_t *drr = 0;
 
     ret = common_dump_vmm(&drr, g_vcpuid);
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         BFALERT("IOCTL_DUMP_VMM: common_dump_vmm failed: %p - %s\n", \
-              (void *)ret, ec_to_str(ret));
+                (void *)ret, ec_to_str(ret));
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_to_user(user_drr, drr, sizeof(struct debug_ring_resources_t));
-    if (ret != 0)
-    {
+    if (ret != 0) {
         BFALERT("IOCTL_DUMP_VMM: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
@@ -271,15 +260,13 @@ ioctl_vmm_status(int64_t *status)
     int64_t ret;
     int64_t vmm_status = common_vmm_status();
 
-    if (status == 0)
-    {
+    if (status == 0) {
         BFALERT("IOCTL_VMM_STATUS: common_vmm_status failed: NULL\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_to_user(status, &vmm_status, sizeof(int64_t));
-    if (ret != 0)
-    {
+    if (ret != 0) {
         BFALERT("IOCTL_VMM_STATUS: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
@@ -292,15 +279,13 @@ ioctl_set_vcpuid(uint64_t *vcpuid)
 {
     int64_t ret;
 
-    if (vcpuid == 0)
-    {
+    if (vcpuid == 0) {
         BFALERT("IOCTL_SET_VCPUID: failed with vcpuid == NULL\n");
         return BF_IOCTL_FAILURE;
     }
 
     ret = copy_from_user(&g_vcpuid, vcpuid, sizeof(uint64_t));
-    if (ret != 0)
-    {
+    if (ret != 0) {
         BFALERT("IOCTL_SET_VCPUID: failed to copy memory from userspace\n");
         return BF_IOCTL_FAILURE;
     }
@@ -315,8 +300,7 @@ dev_unlocked_ioctl(struct file *file,
 {
     (void) file;
 
-    switch (cmd)
-    {
+    switch (cmd) {
         case IOCTL_ADD_MODULE:
             return ioctl_add_module((char *)arg);
 
@@ -349,15 +333,13 @@ dev_unlocked_ioctl(struct file *file,
     }
 }
 
-static struct file_operations fops =
-{
+static struct file_operations fops = {
     .open = dev_open,
     .release = dev_release,
     .unlocked_ioctl = dev_unlocked_ioctl,
 };
 
-static struct miscdevice bareflank_dev =
-{
+static struct miscdevice bareflank_dev = {
     MISC_DYNAMIC_MINOR,
     BAREFLANK_NAME,
     &fops
@@ -380,8 +362,7 @@ dev_reboot(struct notifier_block *nb,
     return NOTIFY_DONE;
 }
 
-static struct notifier_block bareflank_notifier_block =
-{
+static struct notifier_block bareflank_notifier_block = {
     .notifier_call = dev_reboot
 };
 
@@ -390,14 +371,12 @@ dev_init(void)
 {
     register_reboot_notifier(&bareflank_notifier_block);
 
-    if (misc_register(&bareflank_dev) != 0)
-    {
+    if (misc_register(&bareflank_dev) != 0) {
         BFALERT("misc_register failed\n");
         return -EPERM;
     }
 
-    if (common_init() != 0)
-    {
+    if (common_init() != 0) {
         BFALERT("common_init failed\n");
         return -EPERM;
     }

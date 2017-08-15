@@ -102,8 +102,7 @@ driver_entry_ut::test_common_start_set_affinity_failed()
         MockRepository mocks;
         mocks.ExpectCallFunc(platform_set_affinity).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_start_vmm() == -1);
         });
     }
@@ -122,13 +121,11 @@ driver_entry_ut::test_common_start_vmcall_failed()
 
     {
         MockRepository mocks;
-        mocks.ExpectCallFunc(platform_vmcall).Do([](auto regs)
-        {
+        mocks.ExpectCallFunc(platform_vmcall).Do([](auto regs) {
             regs->r01 = 1;
         });
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_start_vmm() == ENTRY_ERROR_VMM_START_FAILED);
         });
     }

@@ -121,8 +121,7 @@ driver_entry_ut::test_common_fini_unload_failed()
         MockRepository mocks;
         mocks.ExpectCallFunc(common_unload_vmm).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_fini() == BF_SUCCESS);
         });
     }
@@ -145,8 +144,7 @@ driver_entry_ut::test_common_fini_stop_failed()
         MockRepository mocks;
         mocks.ExpectCallFunc(common_stop_vmm).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_fini() == BF_SUCCESS);
         });
     }
@@ -170,8 +168,7 @@ driver_entry_ut::test_common_fini_reset_failed()
         mocks.ExpectCallFunc(common_reset).Return(-1);
         mocks.ExpectCallFunc(common_reset).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_fini() == BF_SUCCESS);
         });
     }

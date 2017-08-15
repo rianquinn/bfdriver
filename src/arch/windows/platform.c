@@ -33,16 +33,16 @@ platform_alloc_rw(uint64_t len)
 {
     void *addr = NULL;
 
-    if (len == 0)
-    {
+    if (len == 0) {
         ALERT("platform_alloc: invalid length\n");
         return addr;
     }
 
     addr = ExAllocatePoolWithTag(NonPagedPool, len, BF_TAG);
 
-    if (addr == NULL)
+    if (addr == NULL) {
         ALERT("platform_alloc_rw: failed to ExAllocatePoolWithTag mem: %lld\n", len);
+    }
 
     return addr;
 }
@@ -52,16 +52,16 @@ platform_alloc_rwe(uint64_t len)
 {
     void *addr = NULL;
 
-    if (len == 0)
-    {
+    if (len == 0) {
         ALERT("platform_alloc: invalid length\n");
         return addr;
     }
 
     addr = ExAllocatePoolWithTag(NonPagedPoolExecute, len, BF_TAG);
 
-    if (addr == NULL)
+    if (addr == NULL) {
         ALERT("platform_alloc_rw: failed to ExAllocatePoolWithTag mem: %lld\n", len);
+    }
 
     return addr;
 }
@@ -79,8 +79,7 @@ platform_free_rw(void *addr, uint64_t len)
 {
     (void) len;
 
-    if (addr == NULL)
-    {
+    if (addr == NULL) {
         ALERT("platform_free_rw: invalid address %p\n", addr);
         return;
     }
@@ -93,8 +92,7 @@ platform_free_rwe(void *addr, uint64_t len)
 {
     (void) len;
 
-    if (addr == NULL)
-    {
+    if (addr == NULL) {
         ALERT("platform_free_rw: invalid address %p\n", addr);
         return;
     }
@@ -105,8 +103,9 @@ platform_free_rwe(void *addr, uint64_t len)
 void
 platform_memset(void *ptr, char value, uint64_t num)
 {
-    if (!ptr)
+    if (!ptr) {
         return;
+    }
 
     RtlFillMemory(ptr, num, value);
 }
@@ -114,8 +113,9 @@ platform_memset(void *ptr, char value, uint64_t num)
 void
 platform_memcpy(void *dst, const void *src, uint64_t num)
 {
-    if (!dst || !src)
+    if (!dst || !src) {
         return;
+    }
 
     RtlCopyMemory(dst, src, num);
 }

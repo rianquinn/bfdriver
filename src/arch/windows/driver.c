@@ -40,8 +40,9 @@ DriverEntry(
     WDF_DRIVER_CONFIG_INIT(&config, bareflankEvtDeviceAdd);
 
     status = WdfDriverCreate(DriverObject, RegistryPath, &attributes, &config, WDF_NO_HANDLE);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
     DEBUG("DriverEntry: success\n");
     return STATUS_SUCCESS;
@@ -65,8 +66,9 @@ bareflankEvtDeviceAdd(
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerCallbacks);
 
     status = bareflankCreateDevice(DeviceInit);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
     DEBUG("bareflankEvtDeviceAdd: success\n");
     return STATUS_SUCCESS;

@@ -103,8 +103,9 @@ driver_entry_ut::test_common_add_module_add_when_corrupt()
 void
 driver_entry_ut::test_common_add_module_add_too_many()
 {
-    for (auto i = 0U; i < MAX_NUM_MODULES; i++)
+    for (auto i = 0U; i < MAX_NUM_MODULES; i++) {
         this->expect_true(common_add_module(m_dummy_start_vmm_success.get(), m_dummy_start_vmm_success_length) == BF_SUCCESS);
+    }
 
     this->expect_true(common_add_module(m_dummy_start_vmm_success.get(), m_dummy_start_vmm_success_length) == BF_ERROR_MAX_MODULES_REACHED);
     this->expect_true(common_fini() == BF_SUCCESS);
@@ -116,8 +117,7 @@ driver_entry_ut::test_common_add_module_platform_alloc_fails()
     MockRepository mocks;
     mocks.ExpectCallFunc(platform_alloc_rwe).Return(nullptr);
 
-    RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-    {
+    RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
         this->expect_true(common_add_module(m_dummy_start_vmm_success.get(), m_dummy_start_vmm_success_length) == BF_ERROR_OUT_OF_MEMORY);
     });
 }
@@ -128,8 +128,7 @@ driver_entry_ut::test_common_add_module_load_elf_fails()
     MockRepository mocks;
     mocks.ExpectCallFunc(load_elf_file).Return(-1);
 
-    RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-    {
+    RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
         this->expect_true(common_add_module(m_dummy_start_vmm_success.get(), m_dummy_start_vmm_success_length) == -1);
     });
 }

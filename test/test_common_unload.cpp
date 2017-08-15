@@ -86,8 +86,7 @@ driver_entry_ut::test_common_unload_execute_symbol_failed()
         MockRepository mocks;
         mocks.ExpectCallFunc(execute_symbol).Return(-1);
 
-        RUN_UNITTEST_WITH_MOCKS(mocks, [&]
-        {
+        RUN_UNITTEST_WITH_MOCKS(mocks, [&] {
             this->expect_true(common_unload_vmm() == -1);
         });
     }

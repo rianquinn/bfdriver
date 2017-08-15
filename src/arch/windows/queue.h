@@ -22,8 +22,7 @@
 
 EXTERN_C_START
 
-typedef struct _QUEUE_CONTEXT
-{
+typedef struct _QUEUE_CONTEXT {
     ULONG reserved;
 
 } QUEUE_CONTEXT, *PQUEUE_CONTEXT;

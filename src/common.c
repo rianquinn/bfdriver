@@ -269,7 +269,7 @@ common_add_module(const char *file, uint64_t fsize)
         return BF_ERROR_INVALID_ARG;
     }
 
-    switch(common_vmm_status()) {
+    switch (common_vmm_status()) {
         case VMM_CORRUPT:
             return BF_ERROR_VMM_CORRUPTED;
         case VMM_LOADED:
@@ -302,7 +302,7 @@ common_load_vmm(void)
     int64_t ret = 0;
     int64_t ignore_ret = 0;
 
-    switch(common_vmm_status()) {
+    switch (common_vmm_status()) {
         case VMM_CORRUPT:
             return BF_ERROR_VMM_CORRUPTED;
         case VMM_LOADED:
@@ -355,11 +355,11 @@ common_load_vmm(void)
         uint64_t tlss = (uint64_t)g_tls;
         uint64_t tlse = tlss + g_tls_size;
 
-        for (; tlss <= tlse; tlss += MAX_PAGE_SIZE)
-        {
+        for (; tlss <= tlse; tlss += MAX_PAGE_SIZE) {
             ret = add_raw_md_to_memory_manager(tlss, MEMORY_TYPE_R | MEMORY_TYPE_W);
-            if (ret != BF_SUCCESS)
+            if (ret != BF_SUCCESS) {
                 return ret;
+            }
         }
     }
 
@@ -379,7 +379,7 @@ common_unload_vmm(void)
 {
     int64_t ret = 0;
 
-    switch(common_vmm_status()) {
+    switch (common_vmm_status()) {
         case VMM_CORRUPT:
             goto corrupted;
         case VMM_RUNNING:
@@ -418,7 +418,7 @@ common_start_vmm(void)
     int64_t caller_affinity = 0;
     struct vmcall_registers_t regs;
 
-    switch(common_vmm_status()) {
+    switch (common_vmm_status()) {
         case VMM_CORRUPT:
             return BF_ERROR_VMM_CORRUPTED;
         case VMM_RUNNING:
@@ -475,7 +475,7 @@ common_stop_vmm(void)
     int64_t caller_affinity = 0;
     struct vmcall_registers_t regs;
 
-    switch(common_vmm_status()) {
+    switch (common_vmm_status()) {
         case VMM_CORRUPT:
             return BF_ERROR_VMM_CORRUPTED;
         case VMM_LOADED:

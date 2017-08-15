@@ -35,16 +35,19 @@ bareflankCreateDevice(
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, DEVICE_CONTEXT);
 
     status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
     status = WdfDeviceCreateDeviceInterface(device, &GUID_DEVINTERFACE_bareflank, NULL);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
     status = bareflankQueueInitialize(device);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
     DEBUG("bareflankCreateDevice: success\n");
     return status;

@@ -27,8 +27,7 @@
 /* Global                                                                     */
 /* -------------------------------------------------------------------------- */
 
-struct pmodule_t
-{
+struct pmodule_t {
     char *data;
     int64_t size;
 };
@@ -47,15 +46,13 @@ ioctl_add_module(char *file, int64_t len)
     char *buf;
     int64_t ret;
 
-    if (g_num_pmodules >= MAX_NUM_MODULES)
-    {
+    if (g_num_pmodules >= MAX_NUM_MODULES) {
         ALERT("IOCTL_ADD_MODULE: too many modules have been loaded\n");
         return BF_IOCTL_FAILURE;
     }
 
     buf = platform_alloc_rw(len);
-    if (buf == NULL)
-    {
+    if (buf == NULL) {
         ALERT("IOCTL_ADD_MODULE: failed to allocate memory for the module\n");
         return BF_IOCTL_FAILURE;
     }
@@ -63,8 +60,7 @@ ioctl_add_module(char *file, int64_t len)
     platform_memcpy(buf, file, len);
 
     ret = common_add_module(buf, len);
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         ALERT("IOCTL_ADD_MODULE: common_add_module failed: %p - %s\n",
               (void *)ret, ec_to_str(ret));
         goto failed;
@@ -94,21 +90,22 @@ ioctl_unload_vmm(void)
     int64_t status = BF_IOCTL_SUCCESS;
 
     ret = common_unload_vmm();
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         ALERT("IOCTL_UNLOAD_VMM: common_unload_vmm failed: %p - %s\n",
               (void *)ret, ec_to_str(ret));
         status = BF_IOCTL_FAILURE;
     }
 
-    for (i = 0; i < g_num_pmodules; i++)
+    for (i = 0; i < g_num_pmodules; i++) {
         platform_free_rwe(pmodules[i].data, pmodules[i].size);
+    }
 
     g_num_pmodules = 0;
     platform_memset(&pmodules, 0, sizeof(pmodules));
 
-    if (status == BF_IOCTL_SUCCESS)
+    if (status == BF_IOCTL_SUCCESS) {
         DEBUG("IOCTL_UNLOAD_VMM: succeeded\n");
+    }
 
     return status;
 }
@@ -119,8 +116,7 @@ ioctl_load_vmm(void)
     int64_t ret;
 
     ret = common_load_vmm();
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         ALERT("IOCTL_LOAD_VMM: ioctl_load_vmm failed: %p - %s\n",
               (void *)ret, ec_to_str(ret));
         goto failure;
@@ -142,15 +138,15 @@ ioctl_stop_vmm(void)
     int64_t status = BF_IOCTL_SUCCESS;
 
     ret = common_stop_vmm();
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         ALERT("IOCTL_STOP_VMM: ioctl_stop_vmm failed: %p - %s\n",
               (void *)ret, ec_to_str(ret));
         status = BF_IOCTL_FAILURE;
     }
 
-    if (status == BF_IOCTL_SUCCESS)
+    if (status == BF_IOCTL_SUCCESS) {
         DEBUG("IOCTL_STOP_VMM: succeeded\n");
+    }
 
     return status;
 }
@@ -161,8 +157,7 @@ ioctl_start_vmm(void)
     int64_t ret;
 
     ret = common_start_vmm();
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         ALERT("IOCTL_START_VMM: ioctl_start_vmm failed: %p - %s\n",
               (void *)ret, ec_to_str(ret));
         goto failure;
@@ -184,8 +179,7 @@ ioctl_dump_vmm(struct debug_ring_resources_t *user_drr)
     struct debug_ring_resources_t *drr = 0;
 
     ret = common_dump_vmm(&drr, g_vcpuid);
-    if (ret != BF_SUCCESS)
-    {
+    if (ret != BF_SUCCESS) {
         ALERT("IOCTL_DUMP_VMM: common_dump_vmm failed: %p - %s\n",
               (void *)ret, ec_to_str(ret));
         return BF_IOCTL_FAILURE;
@@ -202,8 +196,7 @@ ioctl_vmm_status(int64_t *status)
 {
     int64_t vmm_status = common_vmm_status();
 
-    if (status == 0)
-    {
+    if (status == 0) {
         ALERT("IOCTL_VMM_STATUS: common_vmm_status failed: NULL\n");
         return BF_IOCTL_FAILURE;
     }
@@ -217,8 +210,7 @@ ioctl_vmm_status(int64_t *status)
 static int64_t
 ioctl_set_vcpuid(uint64_t *vcpuid)
 {
-    if (vcpuid == 0)
-    {
+    if (vcpuid == 0) {
         ALERT("IOCTL_SET_VCPUID: failed with len == NULL\n");
         return BF_IOCTL_FAILURE;
     }
@@ -247,11 +239,11 @@ bareflankQueueInitialize(
     queueConfig.EvtIoDeviceControl = bareflankEvtIoDeviceControl;
 
     status = WdfIoQueueCreate(Device, &queueConfig, WDF_NO_OBJECT_ATTRIBUTES, &queue);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
-    if (common_init() != BF_SUCCESS)
-    {
+    if (common_init() != BF_SUCCESS) {
         ALERT("common_init failed\n");
         return STATUS_ACCESS_DENIED;
     }
@@ -279,24 +271,23 @@ bareflankEvtIoDeviceControl(
 
     UNREFERENCED_PARAMETER(Queue);
 
-    if (InputBufferLength != 0)
-    {
+    if (InputBufferLength != 0) {
         status = WdfRequestRetrieveInputBuffer(Request, InputBufferLength, &in, &in_size);
 
-        if (!NT_SUCCESS(status))
+        if (!NT_SUCCESS(status)) {
             goto FAILURE;
+        }
     }
 
-    if (OutputBufferLength != 0)
-    {
+    if (OutputBufferLength != 0) {
         status = WdfRequestRetrieveOutputBuffer(Request, OutputBufferLength, &out, &out_size);
 
-        if (!NT_SUCCESS(status))
+        if (!NT_SUCCESS(status)) {
             goto FAILURE;
+        }
     }
 
-    switch (IoControlCode)
-    {
+    switch (IoControlCode) {
         case IOCTL_ADD_MODULE:
             ret = ioctl_add_module((char *)in, (int64_t)in_size);
             break;
@@ -333,11 +324,13 @@ bareflankEvtIoDeviceControl(
             goto FAILURE;
     }
 
-    if (OutputBufferLength != 0)
+    if (OutputBufferLength != 0) {
         WdfRequestSetInformation(Request, out_size);
+    }
 
-    if (ret != BF_IOCTL_SUCCESS)
+    if (ret != BF_IOCTL_SUCCESS) {
         goto FAILURE;
+    }
 
     WdfRequestComplete(Request, STATUS_SUCCESS);
     return;
